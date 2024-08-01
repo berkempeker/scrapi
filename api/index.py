@@ -1,6 +1,7 @@
 from http.server import BaseHTTPRequestHandler
 import requests
 from bs4 import BeautifulSoup
+from urllib.parse import parse_qs
 import json
 
 def get_urls_from_webpage(url):
@@ -13,22 +14,25 @@ def get_urls_from_webpage(url):
     except Exception as e:
         return f"An error occurred: {e}"
 
-class handler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.send_header('Content-type', 'application/json')
-        self.end_headers()
-
+def handler(request):
+    if request.method == 'GET':
         # Get the 'url' query parameter
-        from urllib.parse import urlparse, parse_qs
-        query_components = parse_qs(urlparse(self.path).query)
-        url = query_components.get('url', [''])[0]
+        query_params = parse_qs(request.query_string)
+        url = query_params.get('url', [''])[0]
 
         if url:
             result = get_urls_from_webpage(url)
-            response = json.dumps({"urls": result} if isinstance(result, list) else {"error": result})
+            response = {"urls": result} if isinstance(result, list) else {"error": result}
         else:
-            response = json.dumps({"error": "No URL provided"})
+            response = {"error": "No URL provided"}
 
-        self.wfile.write(response.encode())
-        return
+        return {
+            'statusCode': 200,
+            'headers': {'Content-Type': 'application/json'},
+            'body': json.dumps(response)
+        }
+    else:
+        return {
+            'statusCode': 405,
+            'body': 'Method Not Allowed'
+        }
